@@ -14,7 +14,7 @@ class PlatformLayer {
     var gameMemory = UnsafeMutablePointer<game_memory>.alloc(1)
     var gameInput = UnsafeMutablePointer<game_input>.alloc(1)
     var gameOffscreenBuffer = UnsafeMutablePointer<game_offscreen_buffer>.alloc(1)
-    var gameThreadContext = UnsafeMutablePointer<thread_context>.null()
+    var gameThreadContext: UnsafeMutablePointer<thread_context> = nil
     
     // game code loader
     private var gameCodeLoader = GameCodeLoader()
@@ -39,7 +39,7 @@ class PlatformLayer {
         gameOffscreenBuffer.memory.BytesPerPixel = 4
         gameOffscreenBuffer.memory.Pitch = gameOffscreenBuffer.memory.Width * gameOffscreenBuffer.memory.BytesPerPixel
         
-        var totalBufferSize = gameOffscreenBuffer.memory.Pitch * gameOffscreenBuffer.memory.Height
+        let totalBufferSize = gameOffscreenBuffer.memory.Pitch * gameOffscreenBuffer.memory.Height
         gameOffscreenBuffer.memory.Memory = UnsafeMutablePointer<Void>.alloc(Int(totalBufferSize))
 
         // load our dylib game code

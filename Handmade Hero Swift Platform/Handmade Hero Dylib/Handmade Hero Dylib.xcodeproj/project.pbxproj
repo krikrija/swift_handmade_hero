@@ -86,6 +86,7 @@
 		CB60F0441A4D38C400492AB5 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
+				LastSwiftMigration = 0710;
 				LastUpgradeCheck = 0610;
 				ORGANIZATIONNAME = "Handmade Hero";
 				TargetAttributes = {
@@ -242,6 +243,7 @@
 				CB60F0521A4D38C400492AB5 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

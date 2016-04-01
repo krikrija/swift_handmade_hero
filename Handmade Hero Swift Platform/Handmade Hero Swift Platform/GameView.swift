@@ -40,7 +40,7 @@ import CoreVideo
 
     
     // pointer to an uninitialized CVDisplayLinkRef
-    var displayLink = UnsafeMutablePointer<Unmanaged<CVDisplayLink>?>.alloc(1)
+    var displayLink = UnsafeMutablePointer<CVDisplayLink?>.alloc(1)
     
     let inputManager = InputManager()
     
@@ -53,13 +53,21 @@ import CoreVideo
     
     override func awakeFromNib() {
         let pf = NSOpenGLPixelFormat(attributes: pixelFormatAttrs)
-        let glContext = NSOpenGLContext(format: pf, shareContext: nil)
-        self.pixelFormat = pf
-        self.openGLContext = glContext
+        if let pf = pf {
+            let glContext = NSOpenGLContext(format: pf, shareContext: nil)
+            self.pixelFormat = pf
+            self.openGLContext = glContext
+        }
     }
     
     override func prepareOpenGL() {
         super.prepareOpenGL()
+
+        if self.openGLContext == nil {
+            return
+        }
+
+        let openGLContext = self.openGLContext!
         
         // make current context for use
         openGLContext.makeCurrentContext()
@@ -93,7 +101,7 @@ import CoreVideo
             GLsizei(platformLayer.gameOffscreenBuffer.memory.Width), GLsizei(platformLayer.gameOffscreenBuffer.memory.Height),
             GLint(0),
             GLenum(GL_BGRA),
-            GLenum(GL_UNSIGNED_INT_8_8_8_8_REV), UnsafePointer<Void>.null())
+            GLenum(GL_UNSIGNED_INT_8_8_8_8_REV), nil)
         
         // setup texture modes
         glTexParameteri(GLenum(GL_TEXTURE_2D), GLenum(GL_TEXTURE_MIN_FILTER), GL_NEAREST)
@@ -106,25 +114,31 @@ import CoreVideo
         // create displaylink and store in displayLink pointer
         CVDisplayLinkCreateWithActiveCGDisplays(displayLink)
         
-        // get reference to displayLink memory now it's been created
-        var displayLinkRef: CVDisplayLinkRef? = displayLink.memory?.takeUnretainedValue()
+        // get reference to displayLink memory now that it's been created
+        let displayLinkRef: CVDisplayLinkRef? = displayLink.memory
         
         // setup displaylink callback
         // need to create an UnsafeMutablePointer by using an unsafeBitCast
         let dlContext = unsafeBitCast(self, UnsafeMutablePointer<Void>.self)
         // call shim to get the displaylink callback (the shim calls getFrame when fired)
-        CVDisplayLinkSetOutputCallback(displayLinkRef, getDisplayLinkCallback(), dlContext)
+        CVDisplayLinkSetOutputCallback(displayLinkRef!, getDisplayLinkCallback(), dlContext)
         
         // setup opengl for displaylink
-        CVDisplayLinkSetCurrentCGDisplayFromOpenGLContext(displayLinkRef, openGLContext.CGLContextObj, pixelFormat!.CGLPixelFormatObj)
+        CVDisplayLinkSetCurrentCGDisplayFromOpenGLContext(displayLinkRef!, openGLContext.CGLContextObj, pixelFormat!.CGLPixelFormatObj)
         
         // start the display link
-        CVDisplayLinkStart(displayLinkRef)
+        CVDisplayLinkStart(displayLinkRef!)
 
     }
     
     // callback that our shim will call on cvdisplaylink fire
     func getFrame(time: UnsafePointer<CVTimeStamp>) {
+        if self.openGLContext == nil {
+            return
+        }
+
+        let openGLContext = self.openGLContext!
+
         // lock the opengl context because the main thread might be drawing
         CGLLockContext(openGLContext.CGLContextObj)
         
@@ -174,6 +188,11 @@ import CoreVideo
     
     // resize the viewport when window size changes
     override func reshape() {
+        if self.openGLContext == nil {
+            return
+        }
+        let openGLContext = self.openGLContext!
+
         // lock the opengl context because the displaylink might be drawing
         CGLLockContext(openGLContext.CGLContextObj)
         
@@ -217,7 +236,7 @@ import CoreVideo
     }
     
     // accept first responder and ignore keyboard events because we handle them in the input manager
-    func acceptsFirstResponder() -> Bool {
+    override var acceptsFirstResponder: Bool {
         return true;
     }
     

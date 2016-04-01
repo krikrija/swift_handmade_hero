@@ -9,12 +9,17 @@
 import Foundation
 
 class GameCodeLoader {
-    var gameUpdateAndRenderFn = CFunctionPointer<game_update_and_render>.null()
-    var gameGetSoundSamplesFn = CFunctionPointer<game_get_sound_samples>.null()
+
+    typealias CUpdateRenderSignature = @convention(c) (UnsafeMutablePointer<thread_context>, UnsafeMutablePointer<game_memory>, UnsafeMutablePointer<game_input>, UnsafeMutablePointer<game_offscreen_buffer>) -> Void
+    var gameUpdateAndRenderFn: CUpdateRenderSignature?
+
+    typealias CGetSoundSamplesSignature = @convention(c) (UnsafeMutablePointer<thread_context>, UnsafeMutablePointer<game_memory>, UnsafeMutablePointer<game_sound_output_buffer>) -> Void
+    var gameGetSoundSamplesFn: CGetSoundSamplesSignature?
+
     var isInitialized = false
     let dylibPath: String
     var lastLoadTime = NSDate()
-    var dylibRef = UnsafeMutablePointer<Void>.null()
+    var dylibRef: UnsafeMutablePointer<Void> = nil
     
     init() {
         let frameworksPath = NSBundle.mainBundle().privateFrameworksPath
@@ -29,11 +34,17 @@ class GameCodeLoader {
         }
         
         var err = NSErrorPointer()
-        var attributes = NSFileManager.defaultManager().attributesOfItemAtPath(dylibPath, error: err)
+        var attributes: [NSObject: AnyObject]?
+        do {
+            attributes = try NSFileManager.defaultManager().attributesOfItemAtPath(dylibPath)
+        } catch var error as NSError {
+            err.memory = error
+            attributes = nil
+        }
         if (attributes == nil) {
             return false
         }
-        var currentLoadTime = attributes![NSFileModificationDate]! as NSDate
+        var currentLoadTime = attributes![NSFileModificationDate]! as! NSDate
         if (currentLoadTime.compare(lastLoadTime) == NSComparisonResult.OrderedDescending) {
             // ie currentLoadTime > lastLoadTime
             lastLoadTime = currentLoadTime
@@ -48,12 +59,12 @@ class GameCodeLoader {
         var didLoadCorrectly = false
         
         dylibRef = dlopen(dylibPath, RTLD_LAZY | RTLD_LOCAL)
-        if (dylibRef != UnsafeMutablePointer<Void>.null()) {
-            gameUpdateAndRenderFn = unsafeBitCast(dlsym(dylibRef, "GameUpdateAndRender"), CFunctionPointer<game_update_and_render>.self)
-            gameGetSoundSamplesFn = unsafeBitCast(dlsym(dylibRef, "GameGetSoundSamples"), CFunctionPointer<game_get_sound_samples>.self)
+        if (dylibRef != nil) {
+            gameUpdateAndRenderFn = unsafeBitCast(dlsym(dylibRef, "GameUpdateAndRender"), CUpdateRenderSignature.self)
+            gameGetSoundSamplesFn = unsafeBitCast(dlsym(dylibRef, "GameGetSoundSamples"), CGetSoundSamplesSignature.self)
             
-            if (gameUpdateAndRenderFn != CFunctionPointer<game_update_and_render>.null()
-                && gameGetSoundSamplesFn != CFunctionPointer<game_get_sound_samples>.null()) {
+            if (gameUpdateAndRenderFn != nil
+                && gameGetSoundSamplesFn != nil) {
                 didLoadCorrectly = true
             }
         }
@@ -71,13 +82,13 @@ class GameCodeLoader {
     func unloadGameCode() {
         isInitialized = false
         
-        if (dylibRef != UnsafeMutablePointer<Void>.null()) {
+        if (dylibRef != nil) {
             dlclose(dylibRef)
-            dylibRef = UnsafeMutablePointer<Void>.null()
+            dylibRef = nil
         }
         
         // null out our pointers for good measure...
-        gameUpdateAndRenderFn = CFunctionPointer<game_update_and_render>.null()
-        gameGetSoundSamplesFn = CFunctionPointer<game_get_sound_samples>.null()
+        gameUpdateAndRenderFn = nil
+        gameGetSoundSamplesFn = nil
     }
 }

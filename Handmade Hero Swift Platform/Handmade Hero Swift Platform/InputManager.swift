@@ -8,7 +8,7 @@
 
 import Foundation
 
-@objc class InputManager {
+@objc class InputManager : NSObject {
     
     // lock for thread safety
     private let inputLock = NSLock()
@@ -16,15 +16,17 @@ import Foundation
     // local copy of input
     private var input = UnsafeMutablePointer<game_input>.alloc(1)
     
-    private var hidManager: Unmanaged<IOHIDManager>
+    private var hidManager: Unmanaged<IOHIDManager>!
     
     var shouldProcessInput = true
     
-    init() {
+    override init() {
         //assume keyboard always connected
         input.memory.Controllers.0.IsConnected = 1
         
-        hidManager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone));
+        hidManager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
+
+        super.init()
         
         let hidContext = unsafeBitCast(self, UnsafeMutablePointer<Void>.self)
         let hidManagerVal = hidManager.takeUnretainedValue();
@@ -57,19 +59,19 @@ import Foundation
     
     func updateInputState(inputPtr: UnsafeMutablePointer<game_input>) {
         inputLock.lock()
-        memcpy(inputPtr, input, UInt(sizeof(game_input)))
+        memcpy(inputPtr, input, Int(sizeof(game_input)))
         inputLock.unlock()
     }
     
     func hidDeviceAdded(context: UnsafeMutablePointer<Void>, result: IOReturn, sender: UnsafeMutablePointer<Void>, device: IOHIDDevice) {
-        var manufacturer = unsafeBitCast(IOHIDDeviceGetProperty(device, kIOHIDManufacturerKey).takeUnretainedValue(), CFStringRef.self) as String
-        var product = unsafeBitCast(IOHIDDeviceGetProperty(device, kIOHIDProductKey).takeUnretainedValue(), CFStringRef.self) as String
+        let manufacturer = unsafeBitCast(IOHIDDeviceGetProperty(device, kIOHIDManufacturerKey).takeUnretainedValue(), CFStringRef.self) as String
+        let product = unsafeBitCast(IOHIDDeviceGetProperty(device, kIOHIDProductKey).takeUnretainedValue(), CFStringRef.self) as String
         NSLog("Device added %@ %@", manufacturer, product)
     }
     
     func hidDeviceRemoved(context: UnsafeMutablePointer<Void>, result: IOReturn, sender: UnsafeMutablePointer<Void>, device: IOHIDDevice) {
-        var manufacturer = unsafeBitCast(IOHIDDeviceGetProperty(device, kIOHIDManufacturerKey).takeUnretainedValue(), CFStringRef.self) as String
-        var product = unsafeBitCast(IOHIDDeviceGetProperty(device, kIOHIDProductKey).takeUnretainedValue(), CFStringRef.self) as String
+        let manufacturer = unsafeBitCast(IOHIDDeviceGetProperty(device, kIOHIDManufacturerKey).takeUnretainedValue(), CFStringRef.self) as String
+        let product = unsafeBitCast(IOHIDDeviceGetProperty(device, kIOHIDProductKey).takeUnretainedValue(), CFStringRef.self) as String
         NSLog("Device removed %@ %@", manufacturer, product)
     }
     
@@ -116,7 +118,7 @@ import Foundation
     private func handleKeyboardInput(usage: Int, isDown: Bool) {
         // get a non-unioned version of our controller input
         // (this is because Swift doesn't handle c structs with unions :/
-        var controllerInput = unsafeControllerInputCast(input, 0)
+        let controllerInput = unsafeControllerInputCast(input, 0)
         
         let endedDownVal = bool32(isDown ? 1 : 0)
         
